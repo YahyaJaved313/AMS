@@ -1,0 +1,13 @@
+### Register an Admin
+POST http://localhost:8080/api/users/register
+Content-Type: application/json
+
+{
+  "name": "Admin User",
+  "email": "admin@example.com",
+  "password": "admin123",
+  "phoneNumber": "9876543210",
+  "address": "456 Admin St",
+  "age": 30,
+  "role": "admin"
+}
