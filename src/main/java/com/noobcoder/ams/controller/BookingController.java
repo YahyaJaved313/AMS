@@ -31,6 +31,9 @@ public class BookingController {
             throw new RuntimeException("User not found");
         }
         Long userId = user.getId();
+        if (numberOfTickets <= 0) {
+            throw new IllegalArgumentException("Number of tickets must be greater than zero");
+        }
         Booking booking = bookingService.bookFlight(userId, flightNumber, numberOfTickets);
         return ResponseEntity.ok(booking);
     }

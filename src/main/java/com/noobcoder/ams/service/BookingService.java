@@ -2,44 +2,55 @@ package com.noobcoder.ams.service;
 
 import com.noobcoder.ams.model.Booking;
 import com.noobcoder.ams.model.Flight;
+import com.noobcoder.ams.model.User;
 import com.noobcoder.ams.repository.BookingRepository;
 import com.noobcoder.ams.repository.FlightRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.noobcoder.ams.repository.UserRepository;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class BookingService {
 
-    @Autowired
-    private BookingRepository bookingRepository;
+    private final BookingRepository bookingRepository;
+    private final FlightRepository flightRepository;
+    private final UserRepository userRepository;
 
-    @Autowired
-    private FlightRepository flightRepository;
+    public BookingService(BookingRepository bookingRepository, FlightRepository flightRepository, UserRepository userRepository) {
+        this.bookingRepository = bookingRepository;
+        this.flightRepository = flightRepository;
+        this.userRepository = userRepository;
+    }
 
     @Transactional
     public Booking bookFlight(Long userId, String flightNumber, int numberOfTickets) {
-        Optional<Flight> flightOpt = flightRepository.findById(flightNumber);
-        if (flightOpt.isEmpty()) {
-            throw new RuntimeException("Flight not found");
-        }
-        Flight flight = flightOpt.get();
+        // Validate user exists
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User with ID " + userId + " not found"));
+
+        // Validate flight exists and has enough seats
+        Flight flight = flightRepository.findByFlightNumber(flightNumber)
+                .orElseThrow(() -> new EntityNotFoundException("Flight " + flightNumber + " not found"));
         if (flight.getAvailableSeats() < numberOfTickets) {
-            throw new RuntimeException("Not enough seats available");
+            throw new IllegalArgumentException("Not enough available seats");
         }
+
+        // Update flight availability
         flight.setAvailableSeats(flight.getAvailableSeats() - numberOfTickets);
         flightRepository.save(flight);
 
+        // Create and save booking
         Booking booking = new Booking();
         booking.setUserId(userId);
         booking.setFlightNumber(flightNumber);
         booking.setNumberOfTickets(numberOfTickets);
         booking.setBookingDate(LocalDateTime.now());
-        booking.setStatus("CONFIRMED");
+        booking.setStatus("CONFIRMED"); // Default status
+
         return bookingRepository.save(booking);
     }
 
@@ -47,22 +58,7 @@ public class BookingService {
         return bookingRepository.findByUserId(userId);
     }
 
-    @Transactional
     public void cancelBooking(Long bookingId) {
-        Optional<Booking> bookingOpt = bookingRepository.findById(bookingId);
-        if (bookingOpt.isEmpty()) {
-            throw new RuntimeException("Booking not found");
-        }
-        Booking booking = bookingOpt.get();
-        Optional<Flight> flightOpt = flightRepository.findById(booking.getFlightNumber());
-        if (flightOpt.isEmpty()) {
-            throw new RuntimeException("Flight not found");
-        }
-        Flight flight = flightOpt.get();
-        flight.setAvailableSeats(flight.getAvailableSeats() + booking.getNumberOfTickets());
-        flightRepository.save(flight);
-
-        booking.setStatus("CANCELLED");
-        bookingRepository.save(booking);
+        bookingRepository.deleteById(bookingId);
     }
 }

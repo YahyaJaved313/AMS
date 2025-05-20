@@ -2,6 +2,7 @@ package com.noobcoder.ams.controller;
 
 import com.noobcoder.ams.model.Flight;
 import com.noobcoder.ams.service.FlightService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +19,12 @@ public class FlightController {
 
     @PostMapping("/admin/flights")
     public ResponseEntity<Flight> addFlight(@RequestBody Flight flight) {
+        if (flight.getTotalSeats() < 0 || flight.getAvailableSeats() < 0) {
+            throw new IllegalArgumentException("Total seats and available seats must be non-negative");
+        }
+        if (flight.getAvailableSeats() > flight.getTotalSeats()) {
+            throw new IllegalArgumentException("Available seats cannot exceed total seats");
+        }
         Flight savedFlight = flightService.addFlight(flight);
         return ResponseEntity.ok(savedFlight);
     }
@@ -29,8 +36,9 @@ public class FlightController {
 
     @GetMapping("/admin/flights/{flightNumber}")
     public ResponseEntity<Flight> getFlightByNumber(@PathVariable String flightNumber) {
-        Optional<Flight> flight = flightService.getFlightByNumber(flightNumber);
-        return flight.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+        Flight flight = flightService.getFlightByNumber(flightNumber)
+                .orElseThrow(() -> new EntityNotFoundException("Flight with number " + flightNumber + " not found"));
+        return ResponseEntity.ok(flight);
     }
 
     @PutMapping("/admin/flights/{flightNumber}")
